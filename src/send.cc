@@ -136,6 +136,8 @@ static int queuelifetime = 7*24*60*60;
 static int dailylimit = 0;
 static int failuredelay = 15*60*MICROSECOND;
 static int watchdog_delay = 3*60*MICROSECOND;
+static uint64_t watchdog_timeout = 0; // in milliseconds
+static int watchdog_enabled = 0;
 
 bool load_remotes()
 {
@@ -429,12 +431,19 @@ long delay_recalc()
 #ifdef HAVE_SYSTEMD
 void systemd_notify_ready() 
 {
-  sd_notify(0, "READY=1");
+  watchdog_enabled = sd_watchdog_enabled(0, &watchdog_timeout);
+  if (watchdog_enabled) {
+    sd_notify(0, "READY=1");
+    /* Recommended: half of timeout (but in microseconds) */
+    watchdog_delay = watchdog_timeout / 2 * 1000;
+    fout << "systemd watchdog enabled every " << (int)(watchdog_delay/MICROSECOND) << " seconds" << endl;
+  }
 }
 
 void systemd_notify_heartbeat() 
 {
-  sd_notify(0, "WATCHDOG=1");
+  if (watchdog_enabled)
+    sd_notify(0, "WATCHDOG=1");
 }
 #else
 void systemd_notify_ready() {}
