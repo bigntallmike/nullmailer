@@ -46,6 +46,10 @@
 #include "selfpipe.h"
 #include "setenv.h"
 
+#ifdef HAVE_SYSTEMD
+#include <systemd/sd-daemon.h>
+#endif
+
 #define MICROSECOND 1000000
 
 const char *DELAY_FAILURES_STR = "Resting for 15 minutes ...";
@@ -75,6 +79,12 @@ typedef list<struct message> msglist;
 
 static mystring trigger_path;
 static mystring msg_dir;
+
+#ifdef HAVE_SYSTEMD
+#define MAXPAUSE_DEFAULT 9*60
+#else
+#define MAXPAUSE_DEFAULT 24*60*60
+#endif
 
 struct remote
 {
@@ -120,11 +130,12 @@ typedef list<remote> rlist;
 static rlist remotes;
 static int minpause = 60;
 static int pausetime = minpause;
-static int maxpause = 24*60*60;
-static int sendtimeout = 60*60;
+static int maxpause = MAXPAUSE_DEFAULT;
+static int sendtimeout = 5*60; // reduced from 60*60
 static int queuelifetime = 7*24*60*60;
 static int dailylimit = 0;
-static int failuredelay = 15 * 60 * MICROSECOND;
+static int failuredelay = 15*60*MICROSECOND;
+static int watchdog_delay = 3*60*MICROSECOND;
 
 bool load_remotes()
 {
@@ -156,7 +167,7 @@ bool load_config()
   if(!config_readint("pausetime", minpause))
     minpause = 60;
   if(!config_readint("maxpause", maxpause))
-    maxpause = 24*60*60;
+    maxpause = MAXPAUSE_DEFAULT;
   if(!config_readint("sendtimeout", sendtimeout))
     sendtimeout = 60*60;
   if(!config_readint("queuelifetime", queuelifetime))
@@ -415,10 +426,32 @@ long delay_recalc()
 	return (long)(delay * 1000.0 * 1000.0);
 }
 
+#ifdef HAVE_SYSTEMD
+void systemd_notify_ready() 
+{
+  sd_notify(0, "READY=1");
+}
+
+void systemd_notify_heartbeat() 
+{
+  sd_notify(0, "WATCHDOG=1");
+}
+#else
+void systemd_notify_ready() {}
+void systemd_notify_heartbeat() {}
+#endif
+
 /* In case of daily mail limit, pause a moment ... */
 void daily_limit_delay()
 {
-  usleep(delay_recalc());
+ systemd_notify_heartbeat();
+  long delay = delay_recalc();
+  while (delay > watchdog_delay) {
+    usleep (watchdog_delay);
+    systemd_notify_heartbeat();
+    delay-=watchdog_delay;
+  }
+  usleep(delay);
 }
 
 void send_all()
@@ -519,6 +552,8 @@ bool do_select()
   if (pausetime > maxpause)
     pausetime = maxpause;
 
+  systemd_notify_heartbeat();
+
   int s = select(trigger+1, &readfds, 0, 0, &timeout);
   if(s == 1) {
     fout << "Trigger pulled." << endl;
@@ -559,6 +594,7 @@ int main(int, char*[])
   signal(SIGHUP, SIG_IGN);
   load_config();
   load_messages();
+  systemd_notify_ready();
   for(;;) {
     send_all();
     if (minpause == 0) break;
