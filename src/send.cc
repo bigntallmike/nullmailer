@@ -32,6 +32,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <ctime>
+#include <stdint.h>
 #include "ac/time.h"
 #include "argparse.h"
 #include "autoclose.h"
@@ -598,7 +599,7 @@ int main(int, char*[])
     fout << "Could not chdir to queue message directory." << endl;
     return 1;
   }
-  
+
   signal(SIGALRM, catch_alrm);
   signal(SIGHUP, SIG_IGN);
   load_config();
