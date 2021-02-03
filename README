@@ -1,23 +1,20 @@
 nullmailer
 Simple relay-only mail transport agent
 Bruce Guenter <bruce@untroubled.org>
-Version 2.2
-2018-10-12
+Version 2.x
+2021-02-03
 
 This is nullmailer, a sendmail/qmail/etc replacement MTA for hosts which
 relay to a fixed set of smart relays.  It is designed to be simple to
 configure, secure, and easily extendable.
 
-A mailing list has been set up to discuss this package.  To subscribe,
-send an email to:
-	nullmailer-subscribe@lists.untroubled.org
-A mailing list archive is available at:
-	http://lists.untroubled.org/?list=nullmailer
-
-Development versions of nullmailer are available at GitHub:
+Original versions of nullmailer are available at GitHub:
         https://github.com/bruceg/nullmailer
 
-This package is Copyright (C) 2018 Bruce Guenter, and may be copied
-according to the GNU GENERAL PUBLIC LICENSE (GPL) Version 2 or a later
-version.  A copy of this license is included with this package.  This
-package comes with no warranty of any kind.
+This fork includes changes needed at client sites where we install and maintain
+systems that send month-end statements and other messages to customers.
+
+This package is Copyright (C) 2018 Bruce Guenter, or (C) 2021 Michael Babcock
+and may be copied according to the GNU GENERAL PUBLIC LICENSE (GPL) Version 2
+or a later version.  A copy of this license is included with this package.  
+This package comes with no warranty of any kind.
