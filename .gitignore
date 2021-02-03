@@ -1,6 +1,7 @@
 *.[ao]
 *~
 .deps
+.vscode
 ANNOUNCEMENT
 ChangeLog
 Makefile
