@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <ctime>
 #include "ac/time.h"
 #include "argparse.h"
 #include "autoclose.h"
@@ -44,6 +45,10 @@
 #include "list.h"
 #include "selfpipe.h"
 #include "setenv.h"
+
+#define MICROSECOND 1000000
+
+const char *DELAY_FAILURES_STR = "Resting for 15 minutes ...";
 
 const char* cli_program = "nullmailer-send";
 
@@ -118,6 +123,8 @@ static int pausetime = minpause;
 static int maxpause = 24*60*60;
 static int sendtimeout = 60*60;
 static int queuelifetime = 7*24*60*60;
+static int dailylimit = 0;
+static int failuredelay = 15 * 60 * MICROSECOND;
 
 bool load_remotes()
 {
@@ -154,6 +161,10 @@ bool load_config()
     sendtimeout = 60*60;
   if(!config_readint("queuelifetime", queuelifetime))
     queuelifetime = 7*24*60*60;
+  if(!config_readint("maxdaily", dailylimit))
+    dailylimit = 0;
+  if(!config_readint("failuredelay", failuredelay))
+    failuredelay = 15*60*MICROSECOND;
 
   if (minpause != oldminpause)
     pausetime = minpause;
@@ -375,6 +386,41 @@ bool bounce_msg(const message& msg, const remote& remote, const mystring& output
   return true;
 }
 
+int get_dayofmonth()
+{
+	time_t t = time(0);
+	tm* now = localtime(&t);
+	return now->tm_mday;
+}
+
+/* calculate the proper delay based on a sliding scale to release messages
+   as soon as possible, but no faster than allowed */
+long delay_recalc()
+{
+	static int lastday = 0;
+	static long messagecount = 1;
+
+  if (dailylimit == 0) {
+    return 0;
+  }
+
+	int today = get_dayofmonth();
+	if (lastday != today) {
+		messagecount = 1;
+		lastday = today;
+	}
+
+	float delay = (86400.0 * 2.0) / (dailylimit * dailylimit) * messagecount++;
+	fout << "Delaying message #" << messagecount << " for " << (int)delay << " seconds" << endl;
+	return (long)(delay * 1000.0 * 1000.0);
+}
+
+/* In case of daily mail limit, pause a moment ... */
+void daily_limit_delay()
+{
+  usleep(delay_recalc());
+}
+
 void send_all()
 {
   if(!load_config()) {
@@ -402,12 +448,16 @@ void send_all()
 	  }
 	}
 	msg++;
+        fout << DELAY_FAILURES_STR << endl;
+        usleep(failuredelay);
 	break;
       case permfail:
 	if (bounce_msg(*msg, *remote, output))
 	  messages.remove(msg);
 	else
 	  msg++;
+        fout << DELAY_FAILURES_STR << endl;
+        usleep(failuredelay);
 	break;
       default:
 	if(unlink((*msg).filename.c_str()) == -1) {
@@ -418,6 +468,7 @@ void send_all()
 	  messages.remove(msg);
       }
     }
+    daily_limit_delay();
   }
   fout << "Delivery complete, "
        << itoa(messages.count()) << " message(s) remain." << endl;
