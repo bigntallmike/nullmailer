@@ -136,7 +136,7 @@ static int sendtimeout = 5*60; // reduced from 60*60
 static int queuelifetime = 7*24*60*60;
 static int dailylimit = 0;
 static int failuredelay = 15*60*MICROSECOND;
-static int watchdog_delay = 3*60*MICROSECOND;
+static useconds_t watchdog_delay = 3*60*MICROSECOND;
 static uint64_t watchdog_timeout = 0; // in milliseconds
 static int watchdog_enabled = 0;
 
@@ -436,8 +436,8 @@ void systemd_notify_ready()
   if (watchdog_enabled) {
     sd_notify(0, "READY=1");
     /* Recommended: half of timeout (but in microseconds) */
-    watchdog_delay = watchdog_timeout / 2 * 1000;
-    fout << "systemd watchdog enabled every " << (watchdog_delay/MICROSECOND) << " seconds" << endl;
+    watchdog_delay = (watchdog_timeout/2) * 1000;
+    fout << "systemd watchdog enabled every " << (watchdog_delay/1000) << " seconds" << endl;
   }
 }
 
