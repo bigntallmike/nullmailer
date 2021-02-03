@@ -109,6 +109,13 @@ STARTTLS, use:
 
 Blank lines and lines starting with a pound (\fI#\fR) are ignored.
 .TP
+.B dailylimit
+Maximum messages to send per day.  If non-zero, a sliding scale will be used
+to delay outgoing messages to keep them within this limit per 24hr period.
+.TP
+.B failuredelay
+How long to wait (in seconds) before resuming sending after an SMTP error.
+.TP
 .B sendtimeout
 The time to wait for a remote module listed above to complete sending a
 message before killing it and trying again, in seconds.
