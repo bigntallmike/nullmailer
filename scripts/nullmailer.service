@@ -11,6 +11,7 @@ WorkingDirectory=/var/spool/nullmailer
 ExecStart=/usr/sbin/nullmailer-send
 User=nullmail
 Group=nullmail
+WatchdogSec=600
 Restart=always
 
 [Install]
