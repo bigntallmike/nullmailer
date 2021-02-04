@@ -434,7 +434,7 @@ void systemd_notify_ready()
 {
   watchdog_enabled = sd_watchdog_enabled(0, &watchdog_timeout);
   if (watchdog_enabled) {
-    fout << "systemd watchdog enabled every " << watchdog_timeout << " seconds" << endl;
+    fout << "systemd watchdog enabled every " << (int)(watchdog_timeout/MICROSECOND) << " seconds" << endl;
     /* Recommended: half of timeout */
     watchdog_delay = (watchdog_timeout/2);
     sd_notify(0, "READY=1");
