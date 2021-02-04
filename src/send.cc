@@ -409,7 +409,7 @@ int get_dayofmonth()
 
 /* calculate the proper delay based on a sliding scale to release messages
    as soon as possible, but no faster than allowed */
-long delay_recalc()
+useconds_t delay_recalc()
 {
 	static int lastday = 0;
 	static long messagecount = 1;
@@ -426,7 +426,7 @@ long delay_recalc()
 
 	float delay = (86400.0 * 2.0) / (dailylimit * dailylimit) * messagecount++;
 	fout << "Delaying message #" << messagecount << " for " << (int)delay << " seconds" << endl;
-	return (long)(delay * 1000.0 * 1000.0);
+	return (useconds_t)(delay*MICROSECOND);
 }
 
 #ifdef HAVE_SYSTEMD
@@ -434,15 +434,16 @@ void systemd_notify_ready()
 {
   watchdog_enabled = sd_watchdog_enabled(0, &watchdog_timeout);
   if (watchdog_enabled) {
+    fout << "systemd watchdog enabled every " << watchdog_timeout << " seconds" << endl;
+    /* Recommended: half of timeout */
+    watchdog_delay = (watchdog_timeout/2);
     sd_notify(0, "READY=1");
-    /* Recommended: half of timeout (but in microseconds) */
-    watchdog_delay = (watchdog_timeout/2) * 1000;
-    fout << "systemd watchdog enabled every " << (watchdog_delay/1000) << " seconds" << endl;
   }
 }
 
 void systemd_notify_heartbeat() 
 {
+  /* TODO: keep track of time since last notification */
   if (watchdog_enabled)
     sd_notify(0, "WATCHDOG=1");
 }
@@ -455,13 +456,15 @@ void systemd_notify_heartbeat() {}
 void daily_limit_delay()
 {
  systemd_notify_heartbeat();
-  long delay = delay_recalc();
+  useconds_t delay = delay_recalc();
   while (delay > watchdog_delay) {
     usleep (watchdog_delay);
     systemd_notify_heartbeat();
     delay-=watchdog_delay;
   }
-  usleep(delay);
+  if (delay > 0) {
+    usleep(delay);
+  }
 }
 
 void send_all()
@@ -484,31 +487,33 @@ void send_all()
     while(msg) {
       switch (send_one((*msg).filename, *remote, output)) {
       case tempfail:
-	if (time(0) - (*msg).timestamp > queuelifetime) {
-	  if (bounce_msg(*msg, *remote, output)) {
-	    messages.remove(msg);
-	    continue;
-	  }
-	}
-	msg++;
+        if (time(0) - (*msg).timestamp > queuelifetime) {
+          if (bounce_msg(*msg, *remote, output)) {
+            messages.remove(msg);
+            systemd_notify_heartbeat();
+            continue;
+          }
+        }
+        msg++;
         fout << DELAY_FAILURES_STR << endl;
         usleep(failuredelay);
-	break;
+	      break;
       case permfail:
-	if (bounce_msg(*msg, *remote, output))
-	  messages.remove(msg);
-	else
-	  msg++;
+        if (bounce_msg(*msg, *remote, output))
+          messages.remove(msg);
+        else
+          msg++;
         fout << DELAY_FAILURES_STR << endl;
         usleep(failuredelay);
-	break;
+        break;
       default:
-	if(unlink((*msg).filename.c_str()) == -1) {
-	  fout << "Can't unlink file: " << strerror(errno) << endl;
-	  msg++;
-	}
-	else
-	  messages.remove(msg);
+        if(unlink((*msg).filename.c_str()) == -1) {
+          fout << "Can't unlink file: " << strerror(errno) << endl;
+          msg++;
+        }
+        else {
+          messages.remove(msg);
+        }
       }
     }
     daily_limit_delay();
