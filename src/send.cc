@@ -53,8 +53,6 @@
 
 #define MICROSECOND 1000000
 
-const char *DELAY_FAILURES_STR = "Resting for 15 minutes ...";
-
 const char* cli_program = "nullmailer-send";
 
 selfpipe selfpipe;
@@ -135,7 +133,7 @@ static int maxpause = MAXPAUSE_DEFAULT;
 static int sendtimeout = 5*60; // reduced from 60*60
 static int queuelifetime = 7*24*60*60;
 static int dailylimit = 0;
-static int failuredelay = 15*60*MICROSECOND;
+static int failuredelay = 15*60;
 static useconds_t watchdog_delay = 3*60*MICROSECOND;
 static uint64_t watchdog_timeout = 0; // in milliseconds
 static int watchdog_enabled = 0;
@@ -179,9 +177,7 @@ bool load_config()
     dailylimit = 0;
   // Time to delay after a failure, in seconds
   if(!config_readint("failuredelay", failuredelay))
-    failuredelay = 15*60*MICROSECOND;
-  else
-    failuredelay *= MICROSECOND;
+    failuredelay = 15*60;
 
   if (minpause != oldminpause)
     pausetime = minpause;
@@ -498,16 +494,16 @@ void send_all()
           }
         }
         msg++;
-        fout << DELAY_FAILURES_STR << endl;
-        usleep(failuredelay);
+        fout << "Resting on failure for " << failuredelay << " seconds." << endl;
+        usleep(failuredelay * MICROSECOND);
 	      break;
       case permfail:
         if (bounce_msg(*msg, *remote, output))
           messages.remove(msg);
         else
           msg++;
-        fout << DELAY_FAILURES_STR << endl;
-        usleep(failuredelay);
+        fout << "Resting on failure for " << failuredelay << " seconds." << endl;
+        usleep(failuredelay * MICROSECOND);
         break;
       default:
         if(unlink((*msg).filename.c_str()) == -1) {
