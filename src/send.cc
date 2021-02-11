@@ -177,8 +177,11 @@ bool load_config()
     queuelifetime = 7*24*60*60;
   if(!config_readint("maxdaily", dailylimit))
     dailylimit = 0;
+  // Time to delay after a failure, in seconds
   if(!config_readint("failuredelay", failuredelay))
     failuredelay = 15*60*MICROSECOND;
+  else
+    failuredelay *= MICROSECOND;
 
   if (minpause != oldminpause)
     pausetime = minpause;
