@@ -1,3 +1,5 @@
+- Fix configure to detect --enable-tls and missing gnutls
+
 - Convert all proto modules to use timedout reads.
 
 - Add patterns to the remotes file, to allow messages to be delivered to
