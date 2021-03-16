@@ -134,8 +134,8 @@ static int sendtimeout = 5*60; // reduced from 60*60
 static int queuelifetime = 7*24*60*60;
 static int dailylimit = 0;
 static int failuredelay = 15*60;
-#ifdef HAVE_SYSTEMD
 static useconds_t watchdog_delay = 3*60*MICROSECOND;
+#ifdef HAVE_SYSTEMD
 static uint64_t watchdog_timeout = 0; // in milliseconds
 static int watchdog_enabled = 0;
 #endif
